@@ -6,16 +6,19 @@
 
 {
   imports =
-    [ # Include the results of the hardware scan.
+    [
+      # Include the results of the hardware scan.
       ./hardware-configuration.nix
-	  ./programs.nix
     ];
 
-  # Bootloader.
+  # Bootloader
   boot.loader.grub.enable = true;
-  boot.loader.grub.device = "/dev/sda";
+  boot.loader.grub.devices = [ "nodev" ];
   boot.loader.grub.useOSProber = true;
-
+  boot.loader.grub.efiSupport = true;
+  boot.loader.grub.gfxmodeEfi = "1024x768";
+  boot.loader.efi.canTouchEfiVariables = true;
+  boot.loader.efi.efiSysMountPoint = "/boot/efi";
   networking.hostName = "nixos"; # Define your hostname.
   # networking.wireless.enable = true;  # Enables wireless support via wpa_supplicant.
 
@@ -56,52 +59,52 @@
     LC_TIME = "id_ID.UTF-8";
   };
 
-  # Enable the X11 windowing system.
+
+ # Enable the desktop environment.
   services.xserver.enable = true;
-
-  # Enable BSPWM
   services.xserver.windowManager.bspwm.enable = true;
-  services.xserver.displayManager = { 
-    defaultSession = "none+bspwm"; 
+  services.xserver.autoRepeatDelay = 250;
+  services.xserver.autoRepeatInterval = 30;
+  services.xserver.displayManager = {
+    defaultSession = "none+bspwm";
     setupCommands = ''
-    my_laptop_external_monitor=$(${pkgs.xorg.xrandr}/bin/xrandr --query | grep 'DP-3 connected')
-    if [[ $my_laptop_external_monitor = *connected* ]]; then
-      ${pkgs.xorg.xrandr}/bin/xrandr --output DP-3 --primary --mode 3440x1440 --rate 100 --output eDP-1 --off
-    else
-      ${pkgs.xorg.xrandr}/bin/xrandr --output eDP-1 --mode 1920x1200 --rate 60
-    fi
-    ''; 
-  };
-  # Enable the Deepin Desktop Environment.
-
-  services.xserver.desktopManager.deepin.enable = false;
-  services.xserver.displayManager.lightdm = {
-    enable = true;
-    greeters.enso.enable = true;
+      my_laptop_external_monitor=$(${pkgs.xorg.xrandr}/bin/xrandr --query | grep -ow 'DP-1 connected')
+      if [[ $my_laptop_external_monitor = *connected* ]]; then
+        ${pkgs.xorg.xrandr}/bin/xrandr --output DP-1 --primary --mode 3440x1440 --rate 100 --output eDP-1 --off
+      else
+        ${pkgs.xorg.xrandr}/bin/xrandr --output eDP-1 --mode 1920x1200 --rate 60
+      fi
+    '';
+    lightdm = {
+      enable = true;
+      greeter.enable = true;
+    };
   };
   
-
   # Configure keymap in X11
   services.xserver = {
     layout = "us";
     xkbVariant = "";
-	autorun = false;
   };
-
+  # Configure coneclole keymap
+  console.keyMap = "us";
   # Enable CUPS to print documents.
   services.printing.enable = true;
+
+  # Enable automatic login for the user.
+  services.getty.autologinUser = "fan";
 
   # Enable sound with pipewire.
   sound.enable = true;
   hardware.pulseaudio.enable = false;
+  nixpkgs.config.pulseaudio = true;
   security.rtkit.enable = true;
   services.pipewire = {
     enable = true;
     alsa.enable = true;
     alsa.support32Bit = true;
     pulse.enable = true;
-    # If you want to use JACK applications, uncomment this
-    #jack.enable = true;
+    jack.enable = true;
 
     # use the example session manager (no others are packaged yet so this is enabled by default,
     # no need to redefine it in your config for now)
@@ -109,7 +112,7 @@
   };
 
   # Enable touchpad support (enabled default in most desktopManager).
-  # services.xserver.libinput.enable = true;
+  services.xserver.libinput.enable = true;
 
   # Define a user account. Don't forget to set a password with ‘passwd’.
   users.users.fan = {
@@ -118,8 +121,15 @@
     extraGroups = [ "networkmanager" "wheel" ];
 	
   };
-  users.extraUsers.fan = { shell = pkgs.zsh;};
-
+  # Enable zsh as default shell 
+  users.defaultUserShell = pkgs.zsh;
+  programs.zsh = {
+    enable = true;
+    ohMyZsh.enable = true;
+    ohMyZsh.plugins = [ "git" "npm" "vi-mode" ];
+    syntaxHighlighting.enable = true;
+    autosuggestions.enable = true;
+  };
   # Enable automatic login for the user.
   services.xserver.displayManager.autoLogin.enable = true;
   services.xserver.displayManager.autoLogin.user = "fan";
@@ -131,23 +141,11 @@
   # $ nix search wget
   environment.systemPackages = with pkgs; [
     # App Dependencies
-    cargo
-
+   
     # Xorg
     xorg.xbacklight
 
     # Global Apps
-    wget
-    neovim
-   
-  
-    git
-  
-    bat
- 
-    htop
-    
-	brave
 
     # Desktop Environment
     polybar
@@ -172,10 +170,6 @@
     rose-pine-gtk-theme
 
     # Files
-    unzip
-    ranger
-    ueberzug
-    udiskie
     xfce.thunar
     xfce.thunar-volman
     xfce.thunar-archive-plugin
@@ -225,14 +219,6 @@
   # Or disable the firewall altogether.
   # networking.firewall.enable = false;
 
-  #Optimising the store
-  #nix.optimise.automatic = true;
-  # Garbage Collection
-  #nix.gc = {
-  #	automatic = true;
-  #	dates = "weekly";
-  #	options = "--delete-older-than 30d";
-  #	};
   # This value determines the NixOS release from which the default
   # settings for stateful data, like file locations and database versions
   # on your system were taken. It‘s perfectly fine and recommended to leave
